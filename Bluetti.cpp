@@ -1,6 +1,6 @@
 #include "Bluetti.h"
 #include "BluettiConfig.h"
-
+#include "MapFuncs.h"
 
 //alle statischen müssen  angelegt werden 
 BLEUUID Bluetti::serviceUUID("0000ff00-0000-1000-8000-00805f9b34fb"); //stand in btooth.h  - gehoert zu Bluetti, typ sicher in bluetooth lib
@@ -24,7 +24,7 @@ BLERemoteCharacteristic* Bluetti::pRemoteNotifyCharacteristic;
 CPayloadParser Bluetti::parser(0);
 
 Bluetti::Bluetti(char * bluetoothId, bluetti_command_t &bluettiCommand 
-															,	void (*nc)(String, String) //der callback 
+															,	void (*nc)(char *, String ) //der callback 
 															,	int maxDisconnectedTimeUntilReboot    //device will reboot when wlan/BT/MQTT is not connectet within x Minutes
                               , int bluetoothQueryMessageDelay )  
 {
@@ -128,25 +128,26 @@ void Bluetti::handleBluetooth(){
 
 
 
-void Bluetti::switchOut(String type,String cmd) 
+void Bluetti::switchOut(char * type, const char * cmd) 
 {
 	  bt_command_t command;
 	  command.prefix = 0x01;
   	command.field_update_cmd = 0x06;
+  	uint16_t cmdInt;
 	  
 	  //String type = "ac_output_on";
 		for (int i = 0; i< bluettiCommand.so_b_d_c/sizeof(device_field_data_t); i++)
 		{
-			if (map_field_name(bluettiCommand.bluetti_device_command[i].f_name) == type)
+			if (!strcasecmp(MapFuncs::map_field_name(bluettiCommand.bluetti_device_command[i].f_name) , type))
 			{ //element gefunden
 				command.page = bluettiCommand.bluetti_device_command[i].f_page;
         command.offset = bluettiCommand.bluetti_device_command[i].f_offset;
-        cmd = map_command_value(type,cmd);
-        Serial.print("Found command on "); Serial.println(type+" command is " + cmd);
+        cmdInt = MapFuncs::map_command_value(type,(char *) cmd);
+        Serial.print("Found command on "); Serial.print(type);Serial.print(" command is ");Serial.println(cmdInt);
         break;
 			}
 		}
-		command.len = swap_bytes(cmd.toInt());
+		command.len = swap_bytes(cmdInt);
   	command.check_sum = modbus_crc((uint8_t*)&command,6);
   
   	sendBTCommand(command);
@@ -173,6 +174,7 @@ void Bluetti::handleBTCommandQueue()
 }
 bool Bluetti::connectToServer() {
     Serial.print(F("Forming a connection to "));
+    //toString liefert const - keinen Einfluss auf den typ
     Serial.println(bluettiDevice->getAddress().toString().c_str());
 
     BLEDevice::setMTU(517); // set client to request maximum MTU from server (default is 23 otherwise)
@@ -190,7 +192,7 @@ bool Bluetti::connectToServer() {
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
     if (pRemoteService == nullptr) {
       Serial.print(F("Failed to find our service UUID: "));
-      Serial.println(serviceUUID.toString().c_str());
+      Serial.println(serviceUUID.toString().c_str()); //auch kein Einfluss, duerfte auch static sein 
       pClient->disconnect();
       return false;
     }
@@ -201,7 +203,7 @@ bool Bluetti::connectToServer() {
     pRemoteWriteCharacteristic = pRemoteService->getCharacteristic(WRITE_UUID);
     if (pRemoteWriteCharacteristic == nullptr) {
       Serial.print(F("Failed to find our characteristic UUID: "));
-      Serial.println(WRITE_UUID.toString().c_str());
+      Serial.println(WRITE_UUID.toString().c_str());//s.o.
       pClient->disconnect();
       return false;
     }
@@ -211,7 +213,7 @@ bool Bluetti::connectToServer() {
     pRemoteNotifyCharacteristic = pRemoteService->getCharacteristic(NOTIFY_UUID);
     if (pRemoteNotifyCharacteristic == nullptr) {
       Serial.print(F("Failed to find our characteristic UUID: "));
-      Serial.println(NOTIFY_UUID.toString().c_str());
+      Serial.println(NOTIFY_UUID.toString().c_str());//s.o.
       pClient->disconnect();
       return false;
     }
@@ -264,271 +266,7 @@ void Bluetti::notifyCallbackIntern(
    
 }
 
-//map-Funktionen 
-String Bluetti::map_field_name(enum field_names f_name)
-{
-   switch(f_name) {
-      case DC_OUTPUT_POWER:
-        return "dc_output_power";
-        break; 
-      case AC_OUTPUT_POWER:
-        return "ac_output_power";
-        break; 
-      case DC_OUTPUT_ON:
-        return "dc_output_on";
-        break; 
-      case AC_OUTPUT_ON:
-        return "ac_output_on";
-        break; 
-      case AC_OUTPUT_MODE:
-        return "ac_output_mode";
-        break; 
-      case POWER_GENERATION:
-        return "power_generation";
-        break;       
-      case TOTAL_BATTERY_PERCENT:
-        return "total_battery_percent";
-        break; 
-      case DC_INPUT_POWER:
-        return "dc_input_power";
-        break;
-      case AC_INPUT_POWER:
-        return "ac_input_power";
-        break;
-      case AC_INPUT_VOLTAGE:
-        return "ac_input_voltage";
-        break;
-      case AC_INPUT_FREQUENCY:
-        return "ac_input_frequency";
-        break;
-      case PACK_VOLTAGE:
-        return "pack_voltage";
-        break;
-      case INTERNAL_PACK_VOLTAGE:
-        return "internal_pack_voltage";
-        break;
-      case SERIAL_NUMBER:
-        return "serial_number";
-        break;
-      case ARM_VERSION:
-        return "arm_version";
-        break;
-      case DSP_VERSION:
-        return "dsp_version";
-        break;
-      case DEVICE_TYPE:
-        return "device_type";
-        break;
-      case UPS_MODE:
-        return "ups_mode";
-        break;
-      case AUTO_SLEEP_MODE:
-        return "auto_sleep_mode";
-        break;
-      case GRID_CHARGE_ON:
-        return "grid_charge_on";
-        break;
-      case INTERNAL_AC_VOLTAGE:
-        return "internal_ac_voltage";
-        break;
-      case INTERNAL_AC_FREQUENCY:
-        return "internal_ac_frequency";
-        break;
-      case INTERNAL_CURRENT_ONE:
-        return "internal_current_one";
-        break;
-      case INTERNAL_POWER_ONE:
-        return "internal_power_one";
-        break;
-      case INTERNAL_CURRENT_TWO:
-        return "internal_current_two";
-        break;
-      case INTERNAL_POWER_TWO:
-        return "internal_power_two";
-        break;
-      case INTERNAL_CURRENT_THREE:
-        return "internal_current_three";
-        break;
-      case INTERNAL_POWER_THREE:
-        return "internal_power_three";
-        break;
-      case PACK_NUM_MAX:
-        return "pack_max_num";
-        break;
-      case PACK_NUM:
-        return "pack_num";
-        break;
-      case PACK_BATTERY_PERCENT:
-        return "pack_battery_percent";
-        break;
-      case INTERNAL_DC_INPUT_VOLTAGE:
-        return "internal_dc_input_voltage";
-        break;
-      case INTERNAL_DC_INPUT_POWER:
-        return "internal_dc_input_power";
-        break;
-      case INTERNAL_DC_INPUT_CURRENT:
-        return "internal_dc_input_current";
-        break;
-      case INTERNAL_CELL01_VOLTAGE:
-        return "internal_cell01_voltage";    
-        break;
-      case INTERNAL_CELL02_VOLTAGE:
-        return "internal_cell02_voltage";    
-        break;
-      case INTERNAL_CELL03_VOLTAGE:
-        return "internal_cell03_voltage";    
-        break;
-      case INTERNAL_CELL04_VOLTAGE:
-        return "internal_cell04_voltage";    
-        break;
-      case INTERNAL_CELL05_VOLTAGE:
-        return "internal_cell05_voltage";    
-        break;
-      case INTERNAL_CELL06_VOLTAGE:
-        return "internal_cell06_voltage";    
-        break;
-      case INTERNAL_CELL07_VOLTAGE:
-        return "internal_cell07_voltage";    
-        break;
-      case INTERNAL_CELL08_VOLTAGE:
-        return "internal_cell08_voltage";    
-        break;
-      case INTERNAL_CELL09_VOLTAGE:
-        return "internal_cell09_voltage";    
-        break;
-      case INTERNAL_CELL10_VOLTAGE:
-        return "internal_cell10_voltage";    
-        break;
-      case INTERNAL_CELL11_VOLTAGE:
-        return "internal_cell11_voltage";    
-        break;
-      case INTERNAL_CELL12_VOLTAGE:
-        return "internal_cell12_voltage";    
-        break;
-      case INTERNAL_CELL13_VOLTAGE:
-        return "internal_cell13_voltage";    
-        break;
-      case INTERNAL_CELL14_VOLTAGE:
-        return "internal_cell14_voltage";    
-        break;
-      case INTERNAL_CELL15_VOLTAGE:
-        return "internal_cell15_voltage";    
-        break;
-      case INTERNAL_CELL16_VOLTAGE:
-        return "internal_cell16_voltage";    
-        break;     
-      case LED_MODE:
-        return "led_mode";
-        break;
-      case POWER_OFF:
-        return "power_off";
-        break;
-      case ECO_ON:
-        return "eco_on";
-        break;
-      case ECO_SHUTDOWN:
-        return "eco_shutdown";
-        break;
-      case CHARGING_MODE:
-        return "charging_mode";
-        break;
-      case POWER_LIFTING_ON:
-        return "power_lifting_on";
-        break;
-      case AC_INPUT_POWER_MAX:
-        return "ac_input_power_max";
-        break;
-      case AC_INPUT_CURRENT_MAX:
-        return "ac_input_current_max";
-        break;
-      case AC_OUTPUT_POWER_MAX:
-        return "ac_output_power_max";
-        break;
-      case AC_OUTPUT_CURRENT_MAX:
-        return "ac_output_current_max";
-        break;
-      case BATTERY_MIN_PERCENTAGE:
-        return "battery_min_percentage";
-        break;
-      case AC_CHARGE_MAX_PERCENTAGE:
-        return "ac_charge_max_percentage";
-        break;
-      default:
-        #ifdef DEBUG
-          Serial.println(F("Info 'map_field_name' found unknown field!"));
-        #endif
-        return "unknown";
-        break;
-   }  
-}
-//There is no reflection to do string to enum
-//There are a couple of ways to work aroung it... but basically are just "case" statements
-//Wapped them in a fuction
-String Bluetti::map_command_value(String command_name, String value)
-{
-  String toRet = value;
-  value.toUpperCase();
-  command_name.toUpperCase(); //force case indipendence
 
-  //on / off commands
-  if(command_name == "POWER_OFF" || command_name == "AC_OUTPUT_ON" || command_name == "DC_OUTPUT_ON" || command_name == "ECO_ON" || command_name == "POWER_LIFTING_ON") {
-    if (value == "ON") {
-      toRet = "1";
-    }
-    if (value == "OFF") {
-      toRet = "0";
-    }
-  }
-
-  //See DEVICE_EB3A enums
-  if(command_name == "LED_MODE"){
-    if (value == "LED_LOW") {
-      toRet = "1";
-    }
-    if (value == "LED_HIGH") {
-      toRet = "2";
-    }
-    if (value == "LED_SOS") {
-      toRet = "3";
-    }
-    if (value == "LED_OFF") {
-      toRet = "4";
-    }
-  }
-
-  //See DEVICE_EB3A enums
-  if(command_name == "ECO_SHUTDOWN"){
-    if (value == "ONE_HOUR") {
-      toRet = "1";
-    }
-    if (value == "TWO_HOURS") {
-      toRet = "2";
-    }
-    if (value == "THREE_HOURS") {
-      toRet = "3";
-    }
-    if (value == "FOUR_HOURS") {
-      toRet = "4";
-    }
-  }
-
-  //See DEVICE_EB3A enums
-  if(command_name == "CHARGING_MODE"){
-    if (value == "STANDARD") {
-      toRet = "0";
-    }
-    if (value == "SILENT") {
-      toRet = "1";
-    }
-    if (value == "TURBO") {
-      toRet = "2";
-    }
-  }
-
-
-  return toRet;
-}
 
 //--------------------------------------------------------------
 

@@ -24,7 +24,7 @@ class Bluetti //model vorher ueber defines festlegen
 {
 	public:
 		Bluetti(char * bluetoothId, bluetti_command_t &bluettiCommand 
-															,	void (*nc)(String, String) //der callback 
+															,	void (*nc)(char *, String ) //der callback 
 															,	int maxDisconnectedTimeUntilReboot=5    //device will reboot when wlan/BT/MQTT is not connectet within x Minutes
                               , int bluetoothQueryMessageDelay = 3000);  
 		~Bluetti()
@@ -36,7 +36,7 @@ class Bluetti //model vorher ueber defines festlegen
 		void handleBluetooth();
 		//type ac_output_on oder dc_output_on, cmd on oder off
 		//die anderen types gehen wahrscheinlich auch, brauch ich aber nicht
-		void switchOut(String type, String cmd); 
+		void switchOut(char * type,  const char * cmd); 
 		
 		
   public: 
@@ -68,9 +68,6 @@ class Bluetti //model vorher ueber defines festlegen
 
 		static BLERemoteCharacteristic* pRemoteWriteCharacteristic;
 		static BLERemoteCharacteristic* pRemoteNotifyCharacteristic;
-		
-		String map_field_name(enum field_names f_name);
-		String map_command_value(String command_name, String value);
 
 };
 
