@@ -86,6 +86,7 @@ void Bluetti::handleBluetooth(){
     doConnect = false;
   }
 
+/*
   if ((millis() - lastBTMessage) > (maxDisconnectedTimeUntilReboot * 60000)){ 
     Serial.println(F("BT is disconnected over allowed limit, reboot device"));
     #ifdef SLEEP_TIME_ON_BT_NOT_AVAIL
@@ -94,7 +95,7 @@ void Bluetti::handleBluetooth(){
         ESP.restart();
     #endif
   }
-
+*/
   if (connected) {
     // poll for device state
     if ( millis() - lastBTMessage > BLUETOOTH_QUERY_MESSAGE_DELAY){
