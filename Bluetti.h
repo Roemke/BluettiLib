@@ -8,7 +8,7 @@
 #include "CPayloadParser.h"
 #include "utils.h"
 
-//#define DEBUG 1
+#define DEBUG 1
 /*
 	Bin nicht ganz glücklich damit, sehe aber momentan keine Lösung 
 	die Callback-Methode muss eine Statische sein, sonst passt die Signatur nicht
@@ -25,8 +25,8 @@ class Bluetti //model vorher ueber defines festlegen
 	public:
 		Bluetti(char * bluetoothId, bluetti_command_t &bluettiCommand 
 															,	void (*nc)(char *, String ) //der callback 
-															,	int maxDisconnectedTimeUntilReboot=5    //device will reboot when wlan/BT/MQTT is not connectet within x Minutes
-                              , int bluetoothQueryMessageDelay = 3000);  
+															,	int maxDisconnectedTimeUntilReboot=10    //device will reboot when wlan/BT/MQTT is not connectet within x Seconds
+                              , int bluetoothQueryMessageDelay = 3000);  //no reboot just message 
 		~Bluetti()
 		{
 			//delete [] this->bluetoothId;

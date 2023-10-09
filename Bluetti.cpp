@@ -65,7 +65,7 @@ void Bluetti::sendBTCommand(bt_command_t command)
 //void Bluetti::notifyCallback(String, String); //waere die vereinfachte syntax, geht auf jeden Fall nicht
  
 void Bluetti::handleBluetooth(){
-	#ifdef DEBUG
+	#ifdef DEBUG	
   static bool fc = true; 
   if (fc)
   {
@@ -86,16 +86,16 @@ void Bluetti::handleBluetooth(){
     doConnect = false;
   }
 
-/*
-  if ((millis() - lastBTMessage) > (maxDisconnectedTimeUntilReboot * 60000)){ 
-    Serial.println(F("BT is disconnected over allowed limit, reboot device"));
-    #ifdef SLEEP_TIME_ON_BT_NOT_AVAIL
-        esp_deep_sleep_start();
-    #else
-        ESP.restart();
-    #endif
+
+  if ((millis() - lastBTMessage) > (maxDisconnectedTimeUntilReboot * 1000 )){ //60000)){ 
+    Serial.println(F("BT is disconnected over allowed limit, dont reboot device"));
+//    #ifdef SLEEP_TIME_ON_BT_NOT_AVAIL
+//        esp_deep_sleep_start();
+//    #else
+//        ESP.restart();
+//    #endif
   }
-*/
+
   if (connected) {
     // poll for device state
     if ( millis() - lastBTMessage > BLUETOOTH_QUERY_MESSAGE_DELAY){
@@ -116,10 +116,9 @@ void Bluetti::handleBluetooth(){
        } else {
            pollTick++;
        }
-            
       lastBTMessage = millis();
     }
-
+     
     handleBTCommandQueue();
     
   }else if(doScan){
@@ -228,7 +227,7 @@ bool Bluetti::connectToServer() {
     }
 
     if(pRemoteNotifyCharacteristic->canNotify())
-      pRemoteNotifyCharacteristic->registerForNotify(Bluetti::notifyCallbackIntern);
+      pRemoteNotifyCharacteristic->subscribe(true,Bluetti::notifyCallbackIntern);
 
     connected = true;
 
