@@ -24,7 +24,7 @@ class Bluetti //model vorher ueber defines festlegen
 {
 	public:
 		Bluetti(char * bluetoothId, bluetti_command_t &bluettiCommand 
-															,	void (*nc)(char *, String ) //der callback 
+															,	void (*nc)(const char *, String ) //der callback 
 															,	int maxDisconnectedTimeUntilReboot=10    //device will reboot when wlan/BT/MQTT is not connectet within x Seconds
                               , int bluetoothQueryMessageDelay = 3000);  //no reboot just message 
 		~Bluetti()
@@ -47,7 +47,7 @@ class Bluetti //model vorher ueber defines festlegen
  		static char bluetti_device_id[40];// = "Bluetti Blutetooth Id";
  		static bool doConnect;
  		static bool connected;
- 		static bool doScan;
+ 		static bool doScan; 
  		
 	private:
 		//char * bluetoothId = 0;

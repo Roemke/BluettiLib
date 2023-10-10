@@ -24,7 +24,7 @@ BLERemoteCharacteristic* Bluetti::pRemoteNotifyCharacteristic;
 CPayloadParser Bluetti::parser(0);
 
 Bluetti::Bluetti(char * bluetoothId, bluetti_command_t &bluettiCommand 
-															,	void (*nc)(char *, String ) //der callback 
+															,	void (*nc)(const char *, String ) //der callback 
 															,	int maxDisconnectedTimeUntilReboot    //device will reboot when wlan/BT/MQTT is not connectet within x Minutes
                               , int bluetoothQueryMessageDelay )  
 {
@@ -44,46 +44,51 @@ void Bluetti::initBluetooth()
 	Serial.println("in initBluethooth()");
 	#endif
 	
-	BLEDevice::init("");
-	BLEScan* pBLEScan = BLEDevice::getScan();
+	BLEDevice::init(""); // wie in doku
+	BLEScan* pBLEScan = BLEDevice::getScan(); //ebenfalls, scannen
+	//folgendes scanned immer und setzt 
 	pBLEScan->setAdvertisedDeviceCallbacks(new BluettiAdvertisedDeviceCallbacks()); //wer gibt dass denn wieder frei?
-	pBLEScan->setInterval(1349);
-	pBLEScan->setWindow(449);
-	pBLEScan->setActiveScan(true);
-	pBLEScan->start(5, false);
+	pBLEScan->setInterval(80);//1349); // How often the scan occurs / switches channels; in milliseconds
+	pBLEScan->setWindow(0x10);//449); // How long to scan during the interval; in milliseconds.
+	pBLEScan->setActiveScan(true);// Set active scanning, this will get more data from the advertiser.
+	pBLEScan->start(5, false); //5 sekunden scannen?
 	Bluetti::commandHandleQueue = xQueueCreate( 5, sizeof(bt_command_t ) );
-	sendQueue = xQueueCreate( 5, sizeof(bt_command_t) );
+	Bluetti::sendQueue = xQueueCreate( 5, sizeof(bt_command_t) );
 }
 
 
 void Bluetti::sendBTCommand(bt_command_t command)
 {
     bt_command_t cmd = command;
-    xQueueSend(sendQueue, &cmd, 0);
+    xQueueSend(Bluetti::sendQueue, &cmd, 0);
 }
 //void (* Bluetti::notifyCallback)(String , String);  //ah ja, so geht es, brauchen wir aber nicht
 //void Bluetti::notifyCallback(String, String); //waere die vereinfachte syntax, geht auf jeden Fall nicht
  
-void Bluetti::handleBluetooth(){
+void Bluetti::handleBluetooth()
+{
 	#ifdef DEBUG	
   static bool fc = true; 
   if (fc)
   {
   	fc = false;
   	Serial.println("first time in hande bluetooth"); 
-  	if (doConnect)
+  	if (Bluetti::doConnect)
   		Serial.println("try to connect");
   	else 
   		Serial.println("do connect is false");
   }
   #endif
-  if (doConnect == true) {
-    if (connectToServer()) {
+  if (Bluetti::doConnect) 
+  {
+    if (connectToServer()) 
+    {
       Serial.println(F("We are now connected to the Bluetti BLE Server."));
-    } else {
+    } else 
+    {
       Serial.println(F("We have failed to connect to the server; there is nothing more we will do."));
     }
-    doConnect = false;
+    Bluetti::doConnect = false;
   }
 
 
@@ -96,10 +101,12 @@ void Bluetti::handleBluetooth(){
 //    #endif
   }
 
-  if (connected) {
+  if (Bluetti::connected) {
     // poll for device state
     if ( millis() - lastBTMessage > BLUETOOTH_QUERY_MESSAGE_DELAY){
-
+       #ifdef DEBUG
+         Serial.println("Try to send polling command");
+       #endif
        bt_command_t command;
        command.prefix = 0x01;
        command.field_update_cmd = 0x03;
@@ -108,8 +115,9 @@ void Bluetti::handleBluetooth(){
        command.len = (uint16_t) bluettiCommand.bluetti_polling_command[pollTick].f_size << 8;
        command.check_sum = modbus_crc((uint8_t*)&command,6);
 
-       xQueueSend(commandHandleQueue, &command, portMAX_DELAY);
-       xQueueSend(sendQueue, &command, portMAX_DELAY);
+
+       xQueueSend(Bluetti::commandHandleQueue, &command, portMAX_DELAY);
+       xQueueSend(Bluetti::sendQueue, &command, portMAX_DELAY);
 
        if (pollTick == bluettiCommand.so_b_p_c/sizeof(device_field_data_t)-1 ){
            pollTick = 0;
@@ -121,8 +129,16 @@ void Bluetti::handleBluetooth(){
      
     handleBTCommandQueue();
     
-  }else if(doScan){
+  }
+  else if(Bluetti::doScan)
+  {
+  	Bluetti::doScan = false; //nur einmal starten
+  	Serial.println("BLE: Start scan again");
     BLEDevice::getScan()->start(0);  
+  }
+  else 
+  {
+  	Serial.println("BLE no connect, no scan, das sollte nicht sein ");
   }
 }
 
@@ -156,7 +172,7 @@ void Bluetti::switchOut(char * type, const char * cmd)
 void Bluetti::handleBTCommandQueue()
 {
     bt_command_t command;
-    if(xQueueReceive(sendQueue, &command, 0)) {
+    if(xQueueReceive(Bluetti::sendQueue, &command, 0)) {
       
 #ifdef DEBUG
     Serial.print("Write Request FF02 - Value: ");
@@ -177,7 +193,7 @@ bool Bluetti::connectToServer() {
     //toString liefert const - keinen Einfluss auf den typ
     Serial.println(bluettiDevice->getAddress().toString().c_str());
 
-    BLEDevice::setMTU(517); // set client to request maximum MTU from server (default is 23 otherwise)
+    BLEDevice::setMTU(512); // set client to request maximum MTU from server (default is 23 otherwise)
     BLEClient*  pClient  = BLEDevice::createClient();
     Serial.println(F(" - Created client"));
 
@@ -187,7 +203,6 @@ bool Bluetti::connectToServer() {
     pClient->connect(bluettiDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
     Serial.println(F(" - Connected to server"));
     // pClient->setMTU(517); //set client to request maximum MTU from server (default is 23 otherwise)
-  
     // Obtain a reference to the service we are after in the remote BLE server.
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
     if (pRemoteService == nullptr) {
@@ -227,9 +242,11 @@ bool Bluetti::connectToServer() {
     }
 
     if(pRemoteNotifyCharacteristic->canNotify())
+    {
       pRemoteNotifyCharacteristic->subscribe(true,Bluetti::notifyCallbackIntern);
-
-    connected = true;
+      Serial.println("Have subscribed to notify");
+		}
+    Bluetti::connected = true;
 
     return true;
 }
@@ -260,7 +277,7 @@ void Bluetti::notifyCallbackIntern(
 #endif
 
     bt_command_t command_handle;
-    if(xQueueReceive(commandHandleQueue, &command_handle, 500)){
+    if(xQueueReceive(Bluetti::commandHandleQueue, &command_handle, 500)){
       parser.parse_bluetooth_data(	Bluetti::bluettiCommand , command_handle.page, command_handle.offset, pData, length);
     }
    
@@ -280,11 +297,12 @@ void Bluetti::notifyCallbackIntern(
     // We have found a device, let us now see if it contains the service we are looking for.
     
     if (advertisedDevice->haveServiceUUID() && advertisedDevice->isAdvertisingService(Bluetti::serviceUUID) 
-    	&& (strcmp(advertisedDevice->getName().c_str(),Bluetti::bluetti_device_id)==0) ) {
+    	&& (strcmp(advertisedDevice->getName().c_str(),Bluetti::bluetti_device_id)==0) ) 
+    {
       BLEDevice::getScan()->stop();
       Bluetti::bluettiDevice = advertisedDevice;
       Bluetti::doConnect = true;
-      Bluetti::doScan = true;
+      Bluetti::doScan = true; //wenn die verbindung abbricht, kann wieder gescannt werden
       #ifdef DEBUG
       Serial.println("Device wird genutzt");
       #endif
@@ -297,10 +315,9 @@ void Bluetti::notifyCallbackIntern(
       else 
       	Serial.println("No Service UUID");
       	
-    	Serial.println("Device kann nicht genutzt werden");
-    	Serial.print("We have advertised device ");
+    	Serial.println("Device kann nicht genutzt werden: ");
     	Serial.print(advertisedDevice->getName().c_str());
-    	Serial.print(" and Bluetti ");
+    	Serial.print(" Bluetti has: ");
     	Serial.println(Bluetti::bluetti_device_id);
     	#endif 
   	}

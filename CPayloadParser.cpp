@@ -2,7 +2,7 @@
 #include "MapFuncs.h"
 
 //ganz werde ich den String nicht los
-CPayloadParser::CPayloadParser(void (*nc)(char *, String) )
+CPayloadParser::CPayloadParser(void (*nc)(const char *, String) )
 {
 	notifyCallback = nc;
 }
@@ -91,7 +91,7 @@ void CPayloadParser::parse_bluetooth_data(bluetti_command_t &bluettiCommand, uin
                       p_index++;
                 }
 
-								char * topic = MapFuncs::map_field_name(bluettiCommand.bluetti_device_state[i].f_name);
+								const char * topic = MapFuncs::map_field_name(bluettiCommand.bluetti_device_state[i].f_name);
 #ifdef DEBUG
   							// nee zuviel : Serial.println("have information for field: " + topic  );
 #endif 

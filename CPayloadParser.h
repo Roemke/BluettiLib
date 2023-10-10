@@ -20,11 +20,11 @@ class CPayloadParser {
 		String parse_enum_field(uint8_t data[]);
 	
 	public:
-		void (*notifyCallback) (char *, String);
+		void (*notifyCallback) (const char *, String);
 
 
 	public:
-		CPayloadParser( void (*nc)(char * , String) );
+		CPayloadParser( void (*nc)(const char * , String) );
 		void parse_bluetooth_data(bluetti_command_t &bluettiCommand,uint8_t page, uint8_t offset, uint8_t* pData, size_t length);
 };
 #endif

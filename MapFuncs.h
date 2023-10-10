@@ -6,7 +6,7 @@
 
 class MapFuncs {
 	public: 
-		static char * map_field_name(enum field_names f_name)
+		static const char * map_field_name(enum field_names f_name)
 		{
 			 switch(f_name) {
 				  case DC_OUTPUT_POWER:
