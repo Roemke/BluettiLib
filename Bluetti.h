@@ -8,7 +8,7 @@
 #include "CPayloadParser.h"
 #include "utils.h"
 
-#define DEBUG 1
+//#define DEBUG 1
 /*
 	Bin nicht ganz glücklich damit, sehe aber momentan keine Lösung 
 	die Callback-Methode muss eine Statische sein, sonst passt die Signatur nicht
